@@ -1,0 +1,10 @@
+@if (notif$ | async; as notif) {
+  @if (notif.visible) {
+    <div class="alert alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3 shadow"
+         style="z-index: 9999; min-width: 320px;"
+         [ngClass]="notif.type === 'success' ? 'alert-success' : 'alert-danger'"
+         role="alert">
+      {{ notif.message }}
+    </div>
+  }
+}

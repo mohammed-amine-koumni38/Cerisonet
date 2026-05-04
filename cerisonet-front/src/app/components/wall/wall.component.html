@@ -1,0 +1,514 @@
+<div class="wall-page container py-4">
+  <div class="wall-header card shadow-sm mb-4">
+    <div class="card-body d-flex flex-wrap gap-3 justify-content-between align-items-center">
+      <div>
+        <h4 class="mb-1">Mur d'accueil</h4>
+        @if (user) {
+          <p class="mb-0">
+            Connecté en tant que
+            <strong>{{ user.nom }}</strong>
+            <span class="text-muted">({{ user.email }})</span>
+          </p>
+        }
+        @if (lastLogin) {
+          <small class="text-muted">Dernière connexion : {{ lastLogin }}</small>
+        }
+      </div>
+
+      <button class="btn btn-outline-danger" (click)="logout()">Se déconnecter</button>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h5 class="card-title">Créer un post</h5>
+
+      <form (ngSubmit)="submitPost()">
+        <div class="mb-3">
+          <label for="postBody" class="form-label">Texte</label>
+          <textarea
+            id="postBody"
+            class="form-control"
+            rows="3"
+            [(ngModel)]="postBody"
+            name="postBody"
+            placeholder="Quoi de neuf ?"
+            required
+          ></textarea>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-8">
+            <label for="postImageUrl" class="form-label">Image URL (optionnel)</label>
+            <input
+              id="postImageUrl"
+              class="form-control"
+              [(ngModel)]="postImageUrl"
+              name="postImageUrl"
+              placeholder="https://..."
+            />
+          </div>
+
+          <div class="col-md-4">
+            <label for="postImageTitle" class="form-label">Titre image (optionnel)</label>
+            <input
+              id="postImageTitle"
+              class="form-control"
+              [(ngModel)]="postImageTitle"
+              name="postImageTitle"
+              placeholder="Titre"
+            />
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label for="postHashtags" class="form-label">Hashtags (séparés par espace, virgule ou ;)</label>
+          <input
+            id="postHashtags"
+            class="form-control"
+            [(ngModel)]="postHashtagsInput"
+            name="postHashtags"
+            placeholder="#ams #projet"
+          />
+        </div>
+
+        <button class="btn btn-primary" type="submit" [disabled]="creatingPost">
+          @if (creatingPost) {
+            Publication...
+          } @else {
+            Publier
+          }
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Barre de tri et filtres (Etape 4) ─────────────────────────── -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-sm-5 col-md-4">
+          <label for="sortBy" class="form-label mb-1">Trier par</label>
+          <select
+            id="sortBy"
+            class="form-select form-select-sm"
+            [(ngModel)]="sortBy"
+            name="sortBy"
+            (change)="applyFilters()"
+          >
+            <option value="date_desc">Plus récents en premier</option>
+            <option value="date_asc">Plus anciens en premier</option>
+            <option value="likes_desc">Plus aimés</option>
+          </select>
+        </div>
+
+        <div class="col-sm-5 col-md-6">
+          <label for="filterHashtag" class="form-label mb-1">Filtrer par hashtag</label>
+          <input
+            id="filterHashtag"
+            class="form-control form-control-sm"
+            [(ngModel)]="filterHashtag"
+            name="filterHashtag"
+            placeholder="#ams"
+            (keyup.enter)="applyFilters()"
+          />
+        </div>
+
+        <div class="col-sm-2 col-md-2">
+          <button class="btn btn-outline-secondary btn-sm w-100" (click)="applyFilters()">Filtrer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (loadingPosts) {
+    <div class="text-center py-4">
+      <div class="spinner-border" role="status" aria-hidden="true"></div>
+      <p class="text-muted mt-2 mb-0">Chargement des posts...</p>
+    </div>
+  } @else {
+    @if (posts.length === 0) {
+      <div class="card shadow-sm">
+        <div class="card-body text-center text-muted">
+          Aucun post pour le moment.
+        </div>
+      </div>
+    } @else {
+      <div class="post-list d-grid gap-3">
+        @for (post of posts; track post._id) {
+          <article class="card shadow-sm post-card">
+            <div class="card-body">
+
+              <!-- ── Indicateur de repartage ────────────────────────────────── -->
+              @if (isRepost(post)) {
+                <p class="repost-indicator mb-2">
+                  <span class="repost-icon">&#8629;</span>
+                  <span>{{ getDisplayName(post.user) }} a partagé</span>
+                </p>
+              }
+
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <h6 class="mb-0">{{ getDisplayName(post.user) }}</h6>
+                  <small class="text-muted">{{ post.date || 'Date inconnue' }} - {{ post.hour || '--:--' }}</small>
+                </div>
+                <!-- Actions du post : like + supprimer (Etape 4) -->
+                <div class="d-flex align-items-center gap-2">
+                  <div class="d-flex flex-column align-items-end gap-1">
+                    <button
+                      class="btn btn-sm like-btn"
+                      [class.liked]="isLiked(post)"
+                      (click)="toggleLike(post)"
+                      [title]="isLiked(post) ? 'Retirer le like' : 'Aimer ce post'"
+                      aria-label="Aimer"
+                    >
+                      ♥ {{ post.likes || 0 }}
+                    </button>
+                    @if (getLikedByNames(post)) {
+                      <small class="text-muted liked-by-names">{{ getLikedByNames(post) }}</small>
+                    }
+                  </div>
+
+                  @if (isOwner(post)) {
+                    <button
+                      class="btn btn-sm btn-outline-secondary edit-post-btn"
+                      (click)="isEditingPost(post._id) ? cancelEditPost(post._id) : startEditPost(post)"
+                      [title]="isEditingPost(post._id) ? 'Annuler la modification' : 'Modifier ce post'"
+                      aria-label="Modifier"
+                    ><i class="bi bi-pencil-square"></i></button>
+                    <button
+                      class="btn btn-sm btn-outline-danger delete-btn"
+                      (click)="deletePost(post._id)"
+                      title="Supprimer ce post"
+                      aria-label="Supprimer"
+                    >
+                      &times;
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- ── Mode édition du post ───────────────────────────────── -->
+              @if (isEditingPost(post._id)) {
+                <div class="edit-post-form mt-2 p-3 border rounded bg-light">
+                  <div class="mb-2">
+                    <label class="form-label mb-1 small fw-semibold">Texte du post</label>
+                    <textarea
+                      class="form-control form-control-sm"
+                      [(ngModel)]="editingPosts[post._id].body"
+                      [name]="'edit-post-body-' + post._id"
+                      rows="3"
+                      maxlength="2000"
+                      placeholder="Contenu du post..."
+                    ></textarea>
+                  </div>
+                  <div class="row g-2 mb-2">
+                    <div class="col-sm-6">
+                      <label class="form-label mb-1 small">URL de l'image</label>
+                      <input
+                        class="form-control form-control-sm"
+                        [(ngModel)]="editingPosts[post._id].imageUrl"
+                        [name]="'edit-post-img-url-' + post._id"
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <div class="col-sm-6">
+                      <label class="form-label mb-1 small">Titre de l'image</label>
+                      <input
+                        class="form-control form-control-sm"
+                        [(ngModel)]="editingPosts[post._id].imageTitle"
+                        [name]="'edit-post-img-title-' + post._id"
+                        placeholder="Légende..."
+                      />
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label mb-1 small">Hashtags</label>
+                    <input
+                      class="form-control form-control-sm"
+                      [(ngModel)]="editingPosts[post._id].hashtagsInput"
+                      [name]="'edit-post-tags-' + post._id"
+                      placeholder="#ams #info"
+                    />
+                  </div>
+                  <div class="d-flex gap-2">
+                    <button
+                      class="btn btn-sm btn-primary"
+                      (click)="saveEditPost(post._id)"
+                      [disabled]="savingEditPost[post._id] || !editingPosts[post._id]?.body?.trim()"
+                    >
+                      @if (savingEditPost[post._id]) { … } @else { Enregistrer }
+                    </button>
+                    <button
+                      class="btn btn-sm btn-outline-secondary"
+                      (click)="cancelEditPost(post._id)"
+                    >Annuler</button>
+                  </div>
+                </div>
+              } @else {
+                @if (post.body) {
+                  <p class="mb-2 post-body">{{ post.body }}</p>
+                }
+
+                @if (getPostImage(post); as image) {
+                  <figure class="post-figure mb-2">
+                    <img [src]="image.url" [alt]="image.title || 'Image du post'" class="img-fluid rounded" />
+                    @if (image.title) {
+                      <figcaption class="small text-muted mt-1">{{ image.title }}</figcaption>
+                    }
+                  </figure>
+                }
+
+                @if (post.hashtags && post.hashtags.length > 0) {
+                  <div class="d-flex flex-wrap gap-2 mb-2">
+                    @for (tag of post.hashtags; track tag) {
+                      <span class="badge rounded-pill text-bg-primary-subtle text-primary-emphasis">{{ tag }}</span>
+                    }
+                  </div>
+                }
+
+                <!-- ── Post original embedé ────────────────────────────────── -->
+                @if (post.sharedPost) {
+                  <div class="shared-post-embed mt-2 mb-1">
+                    <!-- En-tête auteur -->
+                    <div class="shared-post-header d-flex align-items-center gap-2">
+                      <span class="shared-avatar">{{ getDisplayName(post.sharedPost.user).charAt(0).toUpperCase() }}</span>
+                      <div>
+                        <span class="fw-semibold small">{{ getDisplayName(post.sharedPost.user) }}</span>
+                        <span class="text-muted small ms-2">{{ post.sharedPost.date }} · {{ post.sharedPost.hour }}</span>
+                      </div>
+                    </div>
+
+                    <!-- Corps -->
+                    <div class="shared-post-body mt-2">
+                      @if (post.sharedPost.body) {
+                        <p class="mb-2 small shared-text">{{ post.sharedPost.body }}</p>
+                      }
+                      @if (getPostImage(post.sharedPost); as img) {
+                        <figure class="shared-figure">
+                          <img [src]="img.url" [alt]="img.title || 'Image'" class="img-fluid rounded" />
+                          @if (img.title) {
+                            <figcaption class="small text-muted mt-1">{{ img.title }}</figcaption>
+                          }
+                        </figure>
+                      }
+                      @if (post.sharedPost.hashtags && post.sharedPost.hashtags.length > 0) {
+                        <div class="d-flex flex-wrap gap-1 mt-2">
+                          @for (tag of post.sharedPost.hashtags; track tag) {
+                            <span class="badge rounded-pill shared-tag">{{ tag }}</span>
+                          }
+                        </div>
+                      }
+                    </div>
+
+                    <!-- Likes du post original -->
+                    <div class="shared-post-footer d-flex align-items-center gap-3 mt-2 pt-2">
+                      <span class="shared-stat">
+                        <span class="shared-stat-icon">♥</span>
+                        {{ post.sharedPost.likes || 0 }} like{{ (post.sharedPost.likes || 0) !== 1 ? 's' : '' }}
+                      </span>
+                      @if (post.sharedPost.likedByUsers && post.sharedPost.likedByUsers.length > 0) {
+                        <span class="shared-liked-by">
+                          {{ getLikedByNames(post.sharedPost) }}
+                        </span>
+                      }
+                      @if (post.sharedPost.comments && post.sharedPost.comments.length > 0) {
+                        <span class="shared-stat">
+                          <span class="shared-stat-icon">💬</span>
+                          {{ post.sharedPost.comments.length }} commentaire{{ post.sharedPost.comments.length !== 1 ? 's' : '' }}
+                        </span>
+                      }
+                    </div>
+
+                    <!-- Commentaires du post original -->
+                    @if (post.sharedPost.comments && post.sharedPost.comments.length > 0) {
+                      <div class="shared-comments mt-2 pt-2">
+                        @for (c of post.sharedPost.comments; track c._id || c.text) {
+                          <div class="shared-comment-item">
+                            <strong class="small">{{ getDisplayName(c.user) }}</strong>
+                            <span class="text-muted small ms-1">{{ c.date }} · {{ c.hour }}</span>
+                            <p class="mb-0 small">{{ c.text }}</p>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              }
+
+              @if (post.comments && post.comments.length > 0) {
+                <div class="comments-box mt-3 pt-3 border-top">
+                  <p class="mb-2 fw-semibold">Commentaires ({{ post.comments.length }})</p>
+                  <div class="d-grid gap-2">
+                    @for (comment of post.comments; track comment._id || comment.text + comment.hour) {
+                      <div class="comment-item p-2 rounded">
+
+                        <!-- En-tête : auteur, date, et boutons edit/delete si propriétaire -->
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                          <p class="mb-0 comment-head">
+                            <strong>{{ getDisplayName(comment.user) }}</strong>
+                            <small class="text-muted ms-2">{{ comment.date }} - {{ comment.hour }}</small>
+                            @if (comment.edited) {
+                              <small class="text-muted ms-1 fst-italic">(modifié)</small>
+                            }
+                          </p>
+
+                          <!-- Boutons edit/delete : uniquement si l'utilisateur est l'auteur ET le commentaire a un _id -->
+                          @if (isCommentOwner(comment) && comment._id) {
+                            <div class="d-flex gap-1 comment-actions ms-2">
+                              <button
+                                class="btn-comment-action text-secondary"
+                                (click)="startEditComment(comment)"
+                                title="Modifier ce commentaire"
+                                aria-label="Modifier"
+                              ><i class="bi bi-pencil-square"></i></button>
+                              <button
+                                class="btn-comment-action text-danger"
+                                (click)="deleteComment(post._id, comment._id)"
+                                [disabled]="deletingComment[comment._id]"
+                                title="Supprimer ce commentaire"
+                                aria-label="Supprimer"
+                              >
+                                @if (deletingComment[comment._id]) { … } @else { &times; }
+                              </button>
+                            </div>
+                          }
+                        </div>
+
+                        <!-- Corps : mode lecture OU mode édition inline -->
+                        @if (comment._id && isEditingComment(comment._id)) {
+                          <div class="d-flex gap-2 mt-1">
+                            <input
+                              class="form-control form-control-sm"
+                              [(ngModel)]="editingComments[comment._id]"
+                              [name]="'edit-comment-' + comment._id"
+                              maxlength="1000"
+                              autocomplete="off"
+                            />
+                            <button
+                              class="btn btn-sm btn-primary flex-shrink-0"
+                              (click)="saveEditComment(post._id, comment)"
+                              [disabled]="savingEditComment[comment._id] || !editingComments[comment._id]?.trim()"
+                              title="Enregistrer"
+                            >
+                              @if (savingEditComment[comment._id]) { … } @else { ✓ }
+                            </button>
+                            <button
+                              class="btn btn-sm btn-outline-secondary flex-shrink-0"
+                              (click)="cancelEditComment(comment._id)"
+                              title="Annuler"
+                            >✕</button>
+                          </div>
+                        } @else {
+                          <p class="mb-0">{{ comment.text }}</p>
+                        }
+
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+              <!-- ── Barre actions : partager + commenter ─────────────── -->
+              <div class="comment-form-box mt-3 pt-3 border-top">
+                <form
+                  class="d-flex gap-2"
+                  (ngSubmit)="addComment(post._id)"
+                >
+                  <input
+                    class="form-control form-control-sm"
+                    [(ngModel)]="commentTexts[post._id]"
+                    [name]="'comment-' + post._id"
+                    placeholder="Écrire un commentaire..."
+                    [disabled]="submittingComment[post._id]"
+                    maxlength="1000"
+                    autocomplete="off"
+                  />
+                  <button
+                    class="share-action-btn flex-shrink-0"
+                    type="button"
+                    (click)="isSharing(post._id) ? cancelShare(post._id) : startShare(post._id)"
+                    [class.active]="isSharing(post._id)"
+                    [title]="isSharing(post._id) ? 'Annuler le partage' : 'Partager ce post'"
+                    aria-label="Partager"
+                  >
+                    <span class="share-action-icon">&#8629;</span>
+                    @if (isSharing(post._id)) { Annuler } @else { Partager }
+                  </button>
+                  <button
+                    class="btn btn-sm btn-outline-primary flex-shrink-0"
+                    type="submit"
+                    [disabled]="submittingComment[post._id] || !commentTexts[post._id]?.trim()"
+                  >
+                    @if (submittingComment[post._id]) {
+                      ...
+                    } @else {
+                      Commenter
+                    }
+                  </button>
+                </form>
+
+                <!-- ── Formulaire de partage avec aperçu ─────────────────── -->
+                @if (isSharing(post._id)) {
+                  <div class="share-form-box mt-3">
+                    <div class="share-preview mb-3">
+                      <div class="share-preview-header d-flex align-items-center gap-2 mb-2">
+                        <span class="shared-avatar sm">{{ getDisplayName(post.user).charAt(0).toUpperCase() }}</span>
+                        <div>
+                          <span class="fw-semibold small">{{ getDisplayName(post.user) }}</span>
+                          <span class="text-muted small ms-2">{{ post.date }}</span>
+                        </div>
+                      </div>
+                      @if (post.body) {
+                        <p class="mb-1 small text-truncate-3">{{ post.body }}</p>
+                      }
+                      @if (getPostImage(post); as img) {
+                        <img [src]="img.url" [alt]="img.title || 'Image'" class="img-fluid rounded share-preview-img" />
+                      }
+                    </div>
+                    <form class="d-flex flex-column gap-2" (ngSubmit)="submitShare(post)">
+                      <textarea
+                        class="form-control form-control-sm"
+                        [(ngModel)]="sharingPost[post._id]"
+                        [name]="'share-msg-' + post._id"
+                        placeholder="Dites quelque chose à propos de ce post... (optionnel)"
+                        maxlength="2000"
+                        rows="2"
+                        autocomplete="off"
+                      ></textarea>
+                      <div class="d-flex gap-2 justify-content-end">
+                        <button
+                          class="btn btn-sm btn-outline-secondary"
+                          type="button"
+                          (click)="cancelShare(post._id)"
+                        >Annuler</button>
+                        <button
+                          class="btn btn-sm btn-primary"
+                          type="submit"
+                          [disabled]="submittingShare[post._id]"
+                        >
+                          @if (submittingShare[post._id]) { Partage en cours... } @else { &#8629; Partager }
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                }
+              </div>
+            </div>
+          </article>
+        }
+      </div>
+
+      @if (hasMore) {
+        <div class="text-center mt-4">
+          <button class="btn btn-outline-primary" (click)="fetchPosts(false)" [disabled]="loadingMore">
+            @if (loadingMore) {
+              Chargement...
+            } @else {
+              Charger plus
+            }
+          </button>
+        </div>
+      }
+    }
+  }
+</div>
