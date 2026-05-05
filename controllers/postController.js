@@ -13,7 +13,14 @@ const MAX_BODY_LENGTH = 2000;
 // Nombre max de posts par requête (protection contre abus)
 const MAX_LIMIT = 50;
 
-const createPostController = (pool) => {
+/**
+ * Contrôleur des posts.
+ *
+ * @param {object} pool          - Pool PostgreSQL
+ * @param {object} io            - Instance Socket.IO (broadcast à tous)
+ * @param {object} socketManager - { getSocketIdByUserId, notifyUserDisconnect }
+ */
+const createPostController = (pool, io, socketManager) => {
 
   // ── Utilitaire : enrichit les posts avec les auteurs SQL ──────────────
   // Evite de faire N requêtes SQL (une seule requête batchée)
@@ -186,6 +193,42 @@ const createPostController = (pool) => {
 
     try {
       const createdPost = await Post.create(payload);
+
+      // ── Notification WebSocket lors d'un partage ─────────────────────
+      // Si c'est un partage (shared != null), on notifie le propriétaire
+      // du post original et on incrémente son compteur de partages.
+      if (payload.shared && io && socketManager) {
+        // Incrément atomique du compteur de partages sur le post original
+        const originalPost = await Post.findByIdAndUpdate(
+          payload.shared,
+          { $inc: { shares: 1 } },
+          { new: true, select: 'createdBy shares' }
+        ).lean();
+
+        if (originalPost) {
+          const originalPostId = payload.shared.toString();
+
+          // Broadcast à tous : mise à jour du compteur de partages
+          io.emit('post:updated', {
+            postId: originalPostId,
+            type:   'share',
+            shares: originalPost.shares
+          });
+
+          // Notification ciblée au propriétaire (si connecté et différent du partageur)
+          if (originalPost.createdBy !== req.session.user.id) {
+            const ownerSocketId = socketManager.getSocketIdByUserId(originalPost.createdBy);
+            if (ownerSocketId) {
+              io.to(ownerSocketId).emit('notif:post_interaction', {
+                type:     'share',
+                postId:   originalPostId,
+                actorNom: req.session.user.nom || 'Quelqu\'un'
+              });
+            }
+          }
+        }
+      }
+
       return res.status(201).json({ success: true, post: createdPost });
     } catch (err) {
       console.error('Erreur POST /posts :', err);
@@ -244,6 +287,19 @@ const createPostController = (pool) => {
           user: userMap.get(c.commentedBy) || null
         }))
       };
+
+      // ── Notifications WebSocket temps réel ───────────────────────────
+      // Notification ciblée au propriétaire du post (si connecté et différent du commentateur)
+      if (io && socketManager && post.createdBy !== req.session.user.id) {
+        const ownerSocketId = socketManager.getSocketIdByUserId(post.createdBy);
+        if (ownerSocketId) {
+          io.to(ownerSocketId).emit('notif:post_interaction', {
+            type:     'comment',
+            postId:   id,
+            actorNom: req.session.user.nom || 'Quelqu\'un'
+          });
+        }
+      }
 
       return res.json({ success: true, post: enrichedPost });
     } catch (err) {
@@ -396,6 +452,30 @@ const createPostController = (pool) => {
           [post.likedBy]
         );
         likedByUsers = result.rows;
+      }
+
+      // ── Notifications WebSocket temps réel ───────────────────────────
+      // 1) Broadcast à TOUS les clients connectés : mise à jour du compteur
+      if (io) {
+        io.emit('post:updated', {
+          postId:  id,
+          type:    alreadyLiked ? 'unlike' : 'like',
+          likes:   post.likes,
+          likedBy: post.likedBy
+        });
+      }
+
+      // 2) Notification ciblée au propriétaire du post (si connecté et différent du likeur)
+      if (socketManager && io && post.createdBy !== userId) {
+        const ownerSocketId = socketManager.getSocketIdByUserId(post.createdBy);
+        if (ownerSocketId) {
+          const actorNom = req.session.user.nom || 'Quelqu\'un';
+          io.to(ownerSocketId).emit('notif:post_interaction', {
+            type:     alreadyLiked ? 'unlike' : 'like',
+            postId:   id,
+            actorNom
+          });
+        }
       }
 
       return res.json({

@@ -1,0 +1,214 @@
+/* =========================================
+   NAVBAR – Styles
+   ========================================= */
+
+/* ── Barre principale ─────────────────────────────────────────────────── */
+.cerisonet-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  height: 58px;
+  background: #fff;
+  border-bottom: 1px solid #e8eaf0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* ── Logo ─────────────────────────────────────────────────────────────── */
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.navbar-logo {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.navbar-title {
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: #c0392b;
+  letter-spacing: -0.3px;
+}
+
+/* ── Zone droite ──────────────────────────────────────────────────────── */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.navbar-username {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
+
+/* ── Bouton déconnexion ───────────────────────────────────────────────── */
+.btn-logout {
+  font-size: 0.82rem;
+  padding: 5px 14px;
+  border: 1.5px solid #e05c7a;
+  background: transparent;
+  color: #e05c7a;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.btn-logout:hover {
+  background: #e05c7a;
+  color: #fff;
+}
+
+/* ── Cloche ───────────────────────────────────────────────────────────── */
+.navbar-notif-wrapper {
+  position: relative;
+}
+
+.notif-bell-btn {
+  position: relative;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.4rem;
+  padding: 4px 6px;
+  border-radius: 50%;
+  line-height: 1;
+  transition: background 0.15s;
+}
+
+.notif-bell-btn:hover {
+  background: #f5f5f5;
+}
+
+/* ── Badge rouge ──────────────────────────────────────────────────────── */
+.notif-badge {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  background: #e05c7a;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  line-height: 1;
+  pointer-events: none;
+  border: 2px solid #fff;
+}
+
+/* ── Panneau déroulant ────────────────────────────────────────────────── */
+.notif-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 320px;
+  max-height: 420px;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+  border: 1px solid #eaeef5;
+  z-index: 2000;
+  animation: slideDown 0.15s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Header du panneau ────────────────────────────────────────────────── */
+.notif-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #222;
+  border-bottom: 1px solid #f0f0f0;
+  position: sticky;
+  top: 0;
+  background: #fff;
+}
+
+.notif-panel-count {
+  font-size: 0.75rem;
+  background: #f0f0f5;
+  color: #666;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+/* ── Message vide ─────────────────────────────────────────────────────── */
+.notif-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+/* ── Item notification ────────────────────────────────────────────────── */
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid #f5f5f8;
+  cursor: default;
+  transition: background 0.12s;
+}
+
+.notif-item:last-child {
+  border-bottom: none;
+}
+
+.notif-item:hover {
+  background: #fafbff;
+}
+
+/* Point bleu = non lu */
+.notif-unread {
+  background: #f0f5ff;
+}
+
+.notif-unread:hover {
+  background: #e8f0ff;
+}
+
+.notif-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.notif-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-message {
+  margin: 0 0 2px;
+  font-size: 0.875rem;
+  color: #222;
+  line-height: 1.4;
+}
+
+.notif-time {
+  font-size: 0.75rem;
+  color: #aaa;
+}

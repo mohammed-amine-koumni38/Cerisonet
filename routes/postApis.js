@@ -1,9 +1,11 @@
 const express = require('express');
 const createPostController = require('../controllers/postController');
 
-const createPostRouter = (pool) => {
+// io          : instance Socket.IO (pour émettre vers tous)
+// socketManager : { getSocketIdByUserId, notifyUserDisconnect }
+const createPostRouter = (pool, io, socketManager) => {
   const router = express.Router();
-  const { getPosts, createPost, addComment, editComment, deleteComment, deletePost, editPost, toggleLike } = createPostController(pool);
+  const { getPosts, createPost, addComment, editComment, deleteComment, deletePost, editPost, toggleLike } = createPostController(pool, io, socketManager);
 
   // ── Routes existantes (Etapes 1-3) ─────────────────────────────────────
   router.get('/getPosts', getPosts);

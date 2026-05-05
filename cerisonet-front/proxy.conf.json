@@ -1,6 +1,12 @@
 {
-  "/auth":    { "target": "https://localhost:3197", "secure": false, "changeOrigin": true },
-  "/posts":   { "target": "https://localhost:3197", "secure": false, "changeOrigin": true },
-  "/wall":    { "target": "https://localhost:3197", "secure": false, "changeOrigin": true },
-  "/account": { "target": "https://localhost:3197", "secure": false, "changeOrigin": true }
+  "/auth":      { "target": "https://localhost:3197", "secure": false, "changeOrigin": true },
+  "/posts":     { "target": "https://localhost:3197", "secure": false, "changeOrigin": true },
+  "/wall":      { "target": "https://localhost:3197", "secure": false, "changeOrigin": true },
+  "/account":   { "target": "https://localhost:3197", "secure": false, "changeOrigin": true },
+  "/socket.io": {
+    "target": "https://localhost:3197",
+    "secure": false,
+    "changeOrigin": true,
+    "ws": true
+  }
 }

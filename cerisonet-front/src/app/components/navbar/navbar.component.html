@@ -1,0 +1,65 @@
+<!-- ========================================
+     NAVBAR – Barre de navigation CérisoNet
+     ======================================== -->
+<nav class="cerisonet-navbar">
+
+  <!-- ── Logo / Titre ──────────────────────────────────────────────── -->
+  <div class="navbar-brand">
+    <span class="navbar-logo">🍒</span>
+    <span class="navbar-title">CérisoNet</span>
+  </div>
+
+  <!-- ── Utilisateur connecté + cloche ────────────────────────────── -->
+  <div class="navbar-right">
+
+    @if (user) {
+      <span class="navbar-username">{{ user.nom }}</span>
+    }
+
+    <!-- ── Cloche de notifications ──────────────────────────────────── -->
+    <div class="navbar-notif-wrapper">
+
+      <button class="notif-bell-btn" (click)="togglePanel()">
+        🔔
+        @if ((unreadCount$ | async) ?? 0; as count) {
+          @if (count > 0) {
+            <span class="notif-badge">{{ count > 99 ? '99+' : count }}</span>
+          }
+        }
+      </button>
+
+      <!-- ── Panneau déroulant ─────────────────────────────────────── -->
+      @if (panelOpen) {
+        <div class="notif-panel">
+          <div class="notif-panel-header">
+            <span>Notifications</span>
+            <span class="notif-panel-count">
+              {{ (notifications$ | async)?.length ?? 0 }}
+            </span>
+          </div>
+
+          @let notifs = (notifications$ | async) ?? [];
+
+          @if (notifs.length === 0) {
+            <div class="notif-empty">Aucune notification</div>
+          }
+
+          @for (notif of notifs; track notif.id) {
+            <div class="notif-item" [ngClass]="{ 'notif-unread': !notif.read }">
+              <span class="notif-icon">{{ iconFor(notif.type) }}</span>
+              <div class="notif-content">
+                <p class="notif-message">{{ notif.message }}</p>
+                <span class="notif-time">{{ notif.at | date:'HH:mm' }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+    <!-- fin cloche -->
+
+    <!-- ── Bouton déconnexion ─────────────────────────────────────── -->
+    <button class="btn-logout" (click)="logout()">Se déconnecter</button>
+
+  </div>
+</nav>

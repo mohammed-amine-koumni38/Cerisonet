@@ -34,6 +34,7 @@ export interface PostItem {
   likes?: number;
   likedBy?: number[];        // Tableau des IDs ayant liké (Etape 4)
   likedByUsers?: PostUser[]; // Noms des utilisateurs ayant liké
+  shares?: number;           // Compteur de partages (Etape 5 : temps réel)
   date?: string;
   hour?: string;
   comments?: PostComment[];

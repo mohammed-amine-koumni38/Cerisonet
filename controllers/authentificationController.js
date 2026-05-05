@@ -1,4 +1,11 @@
-const createAuthController = (pool) => {
+/**
+ * Contrôleur d'authentification.
+ *
+ * @param {object} pool          - Pool PostgreSQL
+ * @param {object} socketManager - { getSocketIdByUserId, notifyUserDisconnect }
+ *                                 Peut être null si Socket.IO n'est pas encore prêt.
+ */
+const createAuthController = (pool, socketManager) => {
   const login = async (req, res) => {
     const { login, password } = req.body;
 
@@ -48,12 +55,21 @@ const createAuthController = (pool) => {
 
   const logout = async (req, res) => {
     const email = req.session.user?.email;
+    const userId = req.session.user?.id;
+    const nom    = req.session.user?.nom;
 
     if (email) {
       await pool.query(
         'UPDATE fredouil.compte SET statut_connexion = 0 WHERE mail = $1',
         [email]
       ).catch(err => console.error('Erreur update statut logout :', err));
+    }
+
+    // ── Notification WebSocket avant destruction de la session ──────────
+    // On notifie les autres utilisateurs que cet utilisateur se déconnecte.
+    // Cela doit être fait AVANT session.destroy() car on a besoin de userId/nom.
+    if (userId && nom && socketManager) {
+      socketManager.notifyUserDisconnect(userId, nom);
     }
 
     req.session.destroy(() => {

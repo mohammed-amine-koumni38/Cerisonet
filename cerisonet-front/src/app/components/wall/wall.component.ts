@@ -1,21 +1,22 @@
-// Composant du mur d'accueil – Etape 4
-// Tri, filtres, commentaires, likes, suppression
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { NotifService } from '../../services/notif.service';
+import { SocketService } from '../../services/socket.service';
+import { NavbarComponent } from '../navbar/navbar.component';
 import { User } from '../../models/user.model';
 import { PostItem, PostUser, PostComment, SortOption, EditPostPayload } from '../../models/post.model';
 import { PostService } from '../../services/post.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-wall',
-  imports: [FormsModule],
+  imports: [FormsModule, NavbarComponent],
   templateUrl: './wall.component.html',
   styleUrl: './wall.component.css'
 })
-export class WallComponent implements OnInit {
+export class WallComponent implements OnInit, OnDestroy {
   user: User | null = null;        // Informations de l'utilisateur connecté
   lastLogin = '';                  // Date et heure de la connexion précédente
   posts: PostItem[] = [];
@@ -50,12 +51,17 @@ export class WallComponent implements OnInit {
   sharingPost: Record<string, string> = {};       // postId → corps saisi
   submittingShare: Record<string, boolean> = {};  // postId → en cours d'envoi
 
+  // ── Etape 5 : Souscriptions WebSocket ────────────────────────────────
+  // Stockées pour les désabonner proprement dans ngOnDestroy
+  private socketSubs: Subscription[] = [];
+
   private cursor: string | null = null;
 
   private auth   = inject(AuthService);
   private notif  = inject(NotifService);
   private router = inject(Router);
   private postService = inject(PostService);
+  private socket = inject(SocketService);
 
   ngOnInit(): void {
     // Récupération des informations utilisateur depuis le service
@@ -64,6 +70,43 @@ export class WallComponent implements OnInit {
     this.lastLogin = localStorage.getItem('previousLogin') || '';
 
     this.fetchPosts(true);
+
+    // ── Etape 5 : Connexion WebSocket ──────────────────────────────────
+    // Reconnecte le socket (cas d'un refresh de page : le cookie de session
+    // existe encore, mais le socket a été perdu côté client).
+    this.socket.connect();
+    this.initSocketListeners();
+  }
+
+  // ── Etape 5 : Initialisation des listeners Socket.IO ─────────────────
+  // Le wall gère uniquement la mise à jour des compteurs en temps réel.
+  // Les notifications (cloche) sont gérées par NavbarComponent.
+  private initSocketListeners(): void {
+    // Mise à jour des compteurs likes/partages pour TOUS les utilisateurs
+    this.socketSubs.push(
+      this.socket.onPostUpdated$.subscribe(event => {
+        const idx = this.posts.findIndex(p => p._id === event.postId);
+        if (idx === -1) return;
+
+        const updated = { ...this.posts[idx] };
+
+        if (event.type === 'like' || event.type === 'unlike') {
+          if (event.likes   !== undefined) updated.likes   = event.likes;
+          if (event.likedBy !== undefined) updated.likedBy = event.likedBy;
+        }
+
+        if (event.type === 'share' && event.shares !== undefined) {
+          updated.shares = event.shares;
+        }
+
+        this.posts[idx] = updated;
+      })
+    );
+  }
+
+  // ── Etape 5 : Nettoyage WebSocket ─────────────────────────────────────
+  ngOnDestroy(): void {
+    this.socketSubs.forEach(s => s.unsubscribe());
   }
 
   fetchPosts(reset = false): void {
@@ -497,18 +540,5 @@ export class WallComponent implements OnInit {
       .map((tag) => tag.trim())
       .filter((tag) => tag.length > 0)
       .map((tag) => (tag.startsWith('#') ? tag : `#${tag}`));
-  }
-
-  // Fonction de déconnexion
-  logout(): void {
-    // Envoie une requête de déconnexion au serveur
-    this.auth.logout().subscribe(() => {
-      // Efface les données utilisateur côté client
-      this.auth.clearUser();
-      // (2) Affichage du message de déconnexion
-      this.notif.show('Vous avez été déconnecté.', 'success');
-      // Redirection vers la page de connexion
-      this.router.navigate(['/login']);
-    });
   }
 }

@@ -68,6 +68,11 @@ const postSchema = mongoose.Schema({
     type: [Number],
     default: []
   },
+  // Compteur de partages (Etape 5 : temps réel)
+  shares: {
+    type: Number,
+    default: 0
+  },
   hashtags: {
     type: [String],
     default: []

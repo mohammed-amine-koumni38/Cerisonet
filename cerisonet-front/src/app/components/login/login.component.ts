@@ -1,10 +1,12 @@
 // Composant de connexion: formulaire de login
 // Etapes: (1) Vérification, (2) Notification, (3) LocalStorage, (4) Navigation vers wall
+// Etape 5: Connexion WebSocket après login réussi
 import { Component, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { NotifService } from '../../services/notif.service';
+import { SocketService } from '../../services/socket.service';
 
 @Component({
   selector: 'app-login',
@@ -20,6 +22,7 @@ export class LoginComponent implements OnInit {
   private auth   = inject(AuthService);
   private notif  = inject(NotifService);
   private router = inject(Router);
+  private socket = inject(SocketService);
 
   ngOnInit(): void {
     // (3) Lecture de la connexion précédente (si elle existe)
@@ -43,6 +46,10 @@ export class LoginComponent implements OnInit {
           localStorage.setItem('lastLogin', now);
           // Stockage de l'utilisateur dans le service
           this.auth.setUser(data.user);
+          // Etape 5 : Connexion WebSocket après login réussi
+          // Le cookie de session est disponible à ce moment → Socket.IO
+          // peut le lire lors du handshake pour identifier l'utilisateur.
+          this.socket.connect();
           // (2) Affichage du message de succès dans le bandeau de notification
           this.notif.show(data.message, 'success');
           // (4) Navigation vers le mur d'accueil
